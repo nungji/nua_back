@@ -44,7 +44,7 @@
 | DB | PostgreSQL |
 | DB 드라이버 | asyncpg |
 | ORM | SQLAlchemy 2.x (async) |
-| 마이그레이션 | Alembic (async 템플릿) |
+| 스키마 생성 | 기동 시 `Base.metadata.create_all` |
 | 스키마·검증 | Pydantic v2 |
 | 설정 로딩 | python-dotenv + 설정 dataclass |
 | DI | dependency-injector |
@@ -56,7 +56,6 @@
 uv sync
 cp .env.example .env           # DATABASE_URL 등 채운다
 uv run nua                     # 개발 실행 (uvicorn, /health)
-uv run alembic upgrade head    # 마이그레이션 적용
 docker compose up --build      # api + postgres (테스트 DB)
 ```
 
@@ -66,11 +65,9 @@ docker compose up --build      # api + postgres (테스트 DB)
 nua_back/
 ├── pyproject.toml
 ├── uv.lock
-├── alembic.ini
 ├── .env.example
 ├── Dockerfile
 ├── docker-compose.yml
-├── migrations/          # Alembic (async)
 ├── tests/
 └── src/nua/
     ├── __init__.py      # main() 진입점
@@ -256,11 +253,12 @@ download(
 - 응답 스키마는 `api/schemas.py`에 두고 ORM 모델을 그대로 반환하지 않는다. ORM 객체에서 직렬화할 때는 `model_config = ConfigDict(from_attributes=True)`를 쓴다.
 - DB 세션은 dependency로 주입한다. `async_sessionmaker`를 기반으로 한다.
 - SQLAlchemy는 2.0 스타일(`Mapped[...]`, `mapped_column`)로 쓴다.
-- 스키마 변경은 반드시 Alembic 마이그레이션으로 남긴다. 수동 DDL을 쓰지 않는다.
+- 스키마는 `db/models/`의 매핑이 정본이다. 손으로 DDL을 치지 않는다.
 - DB URL은 `.env`의 `DATABASE_URL` 하나로 관리하고 `postgresql+asyncpg://` 형식을 쓴다.
 - 세션은 `async_sessionmaker(engine, expire_on_commit=False)`로 만들고 요청 단위로 연다.
-- `alembic revision --autogenerate`가 도메인 매핑을 찾으려면 그 모듈이 import되어 있어야 한다. `migrations/env.py`가 `nua.db.models`를 import하므로, 새 매핑은 `db/models/__init__.py`에 올린다.
-- 첫 리비전은 첫 도메인 매핑이 생길 때 만든다. 지금 `migrations/versions/`는 비어 있고 `alembic upgrade head`는 아무것도 하지 않는다.
+- 테이블은 기동할 때 lifespan에서 `Base.metadata.create_all`로 만든다. 새 매핑은 `db/models/<도메인>.py`에 두고 `db/models/__init__.py`에서 import한다(`app.py`가 `nua.db.models`를 import해 metadata에 등록한다).
+- `create_all`은 없는 테이블만 만든다. 이미 있는 테이블의 컬럼 변경·삭제는 반영되지 않는다. 지금은 그때 다시 만드는 것으로 둔다.
+- DB에 붙지 못하면 기동이 실패한다. 조용히 넘어가지 않는다.
 
 ## 미정 사항
 
@@ -269,3 +267,4 @@ download(
 - 배포 방식
 - `ruff format` 적용 여부. **설정으로는 해결되지 않는다(실측)** — 여러 줄로 쓴 호출·컬렉션을 한 줄로 합치고(`skip-magic-trailing-comma`를 켜도 `__all__` 섹션 구분 빈 줄이 사라진다), 여러 줄로 쪼갤 때 마지막 항목 뒤 콤마를 넣는다(끄는 옵션이 없다). `line-length`도 어느 쪽이 쪼개질지만 바꾼다. 그래서 (a) 포맷터를 받아들이고 포맷 절을 다시 쓰거나 (b) `ruff check`만 쓸지 정해야 한다. 지금은 (b)다.
 - CORS 허용 origin. 지금은 `CORS_ORIGINS` 기본값이 `*`다.
+- 마이그레이션 도구 도입 시점. 지금은 기동 시 `create_all`로 만든다.
