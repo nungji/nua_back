@@ -55,7 +55,7 @@ uv run alembic upgrade head    # 마이그레이션 적용
 ## 디렉터리 구조
 
 ```text
-nua-backend/
+nua_back/
 ├── pyproject.toml
 ├── uv.lock
 ├── .env.example
@@ -87,7 +87,7 @@ nua-backend/
 
 ### 커밋 메시지
 
-`접두사: 영어 서술문` 형식. 서술은 무엇을 했는지가 아니라 왜 했는지가 드러나는 문장으로 쓴다.
+`접두사: 한글 서술문` 형식. 접두사는 아래 표의 영어를 그대로 쓰고, 서술은 한글로 쓴다. 서술은 무엇을 했는지가 아니라 왜 했는지가 드러나는 문장으로 쓴다.
 
 | 접두사 | 용도 |
 |---|---|
@@ -100,18 +100,24 @@ nua-backend/
 
 예:
 
-- add: Stage placement validation before save
-- fix: Problem fixed that progress was lost when the app was killed mid-stage
-- refactor: Split stage loading out of the router into a service
+- add: 스테이지 저장 전 배치 검증 추가
+- fix: 스테이지를 하던 중 앱이 죽으면 진행도가 사라지던 문제 수정
+- refactor: 라우터에 붙어 있던 스테이지 로딩을 서비스로 분리
 
 ### 커밋 분리
 
 한 번에 여러 논리 단위를 지시받으면 논리 단위별로 커밋을 나눈다. API 추가, 기능 구현, 리팩토링은 서로 다른 커밋이다.
 
-### 브랜치
+### 브랜치와 워크플로우
 
-- `main` — 안정 브랜치. 직접 push하지 않는다. 병합은 별도 지시가 있을 때만 한다.
-- `develop` — 작업 브랜치. 일상 작업은 여기서 한다.
+`main`이 주축이다. `develop`는 쓰지 않는다. 작업 단위마다 워킹 브랜치를 분리한다.
+
+1. 시작할 작업 하나를 설명하는 GitHub 이슈를 만든다. `.github/ISSUE_TEMPLATE/`의 `feature request`, `problem` 템플릿을 쓴다.
+2. `main`에서 그 이슈에 연결된 워킹 브랜치를 딴다.
+3. 워킹 브랜치에서 작업을 마친 뒤 워킹 브랜치 → `main` 방향으로 PR을 연다. 본문에 `Closes #이슈번호`를 적는다.
+4. **PR 머지는 사람이 직접 한다. 에이전트는 머지하지 않는다.**
+
+`main`에 직접 push하지 않는다.
 
 ### 스테이징 위생
 
