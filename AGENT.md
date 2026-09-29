@@ -113,7 +113,7 @@ nua_back/
 `main`이 주축이다. `develop`는 쓰지 않는다. 작업 단위마다 워킹 브랜치를 분리한다.
 
 1. 시작할 작업 하나를 설명하는 GitHub 이슈를 만든다. `.github/ISSUE_TEMPLATE/`의 `feature request`, `problem` 템플릿을 쓴다.
-2. `main`에서 그 이슈에 연결된 워킹 브랜치를 딴다.
+2. `main`에서 그 이슈에 연결된 워킹 브랜치를 딴다. 이름은 `.github/CONTRIBUTING.md` 규칙(`<prefix>/<작업내용>`, 번호 없음)을 따른다.
 3. 워킹 브랜치에서 작업을 마친 뒤 워킹 브랜치 → `main` 방향으로 PR을 연다. 본문에 `Closes #이슈번호`를 적는다.
 4. **PR 머지는 사람이 직접 한다. 에이전트는 머지하지 않는다.**
 
