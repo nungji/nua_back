@@ -40,16 +40,24 @@
 | 언어 | Python 3.14 |
 | 패키지·가상환경 | uv (PEP 517, src 레이아웃) |
 | 웹 프레임워크 | FastAPI (엔드포인트는 전부 async) |
+| ASGI 서버 | uvicorn |
 | DB | PostgreSQL |
-| ORM | SQLAlchemy 2.0 (async) |
+| DB 드라이버 | asyncpg |
+| ORM | SQLAlchemy 2.x (async) |
+| 마이그레이션 | Alembic (async 템플릿) |
 | 스키마·검증 | Pydantic v2 |
+| 설정 로딩 | python-dotenv + 설정 dataclass |
+| DI | dependency-injector |
+| 로깅 | reger |
 
-이 외의 스택은 아직 확정되지 않았다. 새 라이브러리를 추가하기 전에 먼저 확인받는다. 마이그레이션은 SQLAlchemy 생태계에 맞춰 Alembic을 쓴다.
+이 외의 스택은 아직 확정되지 않았다. 새 라이브러리를 추가하기 전에 먼저 확인받는다.
 
 ```bash
 uv sync
-uv run nua                     # 개발 실행
+cp .env.example .env           # DATABASE_URL 등 채운다
+uv run nua                     # 개발 실행 (uvicorn, /health)
 uv run alembic upgrade head    # 마이그레이션 적용
+docker compose up --build      # api + postgres (테스트 DB)
 ```
 
 ## 디렉터리 구조
@@ -58,19 +66,28 @@ uv run alembic upgrade head    # 마이그레이션 적용
 nua_back/
 ├── pyproject.toml
 ├── uv.lock
+├── alembic.ini
 ├── .env.example
-├── migrations/          # Alembic
+├── Dockerfile
+├── docker-compose.yml
+├── migrations/          # Alembic (async)
+├── tests/
 └── src/nua/
     ├── __init__.py      # main() 진입점
     ├── __main__.py      # main() 호출
     ├── config.py        # 설정 dataclass + .env 로딩
-    ├── app.py           # FastAPI 인스턴스 생성, lifespan, 라우터 등록
+    ├── root_container.py # dependency-injector 컨테이너
+    ├── bootstrap.py     # 로깅 셋업, 컨테이너 wiring, uvicorn 구동
+    ├── app.py           # create_app(): FastAPI 생성, lifespan, 미들웨어, 라우터·핸들러 등록
     ├── api/
+    │   ├── dependencies.py # 요청 단위 DB 세션 의존성
+    │   ├── errors.py    # 도메인 예외 → HTTP 상태 매핑
     │   ├── schemas.py   # Pydantic 요청·응답 모델
     │   └── routes/      # 도메인별 라우터
     ├── domain/          # 도메인 모델, enum, 도메인 예외 (DB·HTTP 무관)
     ├── db/
-    │   ├── models.py    # SQLAlchemy ORM 매핑
+    │   ├── base.py      # DeclarativeBase
+    │   ├── models/      # 도메인별 ORM 매핑
     │   └── session.py   # async engine, sessionmaker
     └── services/        # 유스케이스 (라우터와 DB 사이)
 ```
@@ -82,6 +99,32 @@ nua_back/
 - **enum을 중앙 `enums.py`에 모으지 않는다.** 해당 도메인 파일 안에 정의한다. 조회용 매핑 표가 필요하면 모듈 최상단 dict를 만들지 말고 enum 속성으로 붙인다.
 - 라우터는 HTTP만 담당한다. 검증·계산·DB 접근은 service로 내린다.
 - `domain/`은 FastAPI와 SQLAlchemy를 import하지 않는다.
+
+## 부팅과 DI
+
+부팅 구조는 piepy와 같은 형태를 쓴다.
+
+1. `main()`이 `RootContainer`를 만들고 `Bootstrapper`에 넘긴다.
+2. `Bootstrapper.run()`이 `asyncio.run(arun())`으로 흐르고, `arun()`이 로깅 셋업 → 컨테이너 wiring → uvicorn 구동 순서로 진행한다.
+3. `__main__.py`는 `main()`만 호출한다.
+
+- 컨테이너에는 앱 수명 동안 하나면 되는 것(config, engine, session_maker)만 싱글턴으로 둔다. 라우터와 서비스는 컨테이너에 넣지 않는다.
+- 앱 인스턴스는 `app.create_app()`이 만들고, lifespan에서 엔진을 정리한다.
+- 라우터에서 DB 세션을 받을 때는 `api/dependencies.py`의 `get_session`을 쓴다.
+
+```python
+async def get_stage(session: Annotated[AsyncSession, Depends(get_session)]):
+    ...
+```
+
+- `get_session`은 `@inject`와 `Depends(Provide[...])`로 컨테이너에서 sessionmaker를 받는다. 컨테이너 wiring은 부팅에서 한 번만 한다. 라우터에 `Provide[...]`를 직접 쓰지 않는다.
+
+## 도구
+
+- lint는 `uv run ruff check .`. `ruff format`은 아래 미정 사항 참고.
+- 테스트는 `uv run pytest`. DB가 필요한 테스트는 compose의 Postgres를 쓴다.
+- 로컬 실행은 `docker compose up --build`로 api와 db를 함께 띄운다. 백엔드만 볼 때는 `uv run nua`.
+- `/openapi.json`과 `/docs`가 기본으로 열린다. 프론트엔드 타입은 `/openapi.json`에서 생성한다.
 
 ## Git 컨벤션
 
@@ -170,7 +213,9 @@ class StageNotFoundException(Exception): ...
 ### 로깅
 
 - 모듈 로거는 `_logger = logging.getLogger(__name__)`로 만든다.
-- `print`를 남기지 않는다.
+- 로깅 셋업은 부팅에서 한 번만 한다. `reger.setup_logging(level=logging.INFO)`로 루트 로거를 잡고, 파일 로그가 필요하면 루트 로거에 `reger.ColourFormatter()` 핸들러를 붙인다.
+- **uvicorn은 `log_config=None`으로 띄운다.** uvicorn이 자체 로깅 설정을 하면 uvicorn·access 로그가 reger 핸들러와 따로 놀아 포맷이 두 벌이 된다. `None`이면 uvicorn 로그가 루트 로거로 올라와 포맷이 하나로 유지된다.
+- `print`를 남기지 않는다. 부트스트랩에서 로깅 셋업 직전에 찍는 안내 한 줄만 예외다(그 시점에는 로거 설정이 없다).
 
 ### import
 
@@ -211,10 +256,15 @@ download(
 - DB 세션은 dependency로 주입한다. `async_sessionmaker`를 기반으로 한다.
 - SQLAlchemy는 2.0 스타일(`Mapped[...]`, `mapped_column`)로 쓴다.
 - 스키마 변경은 반드시 Alembic 마이그레이션으로 남긴다. 수동 DDL을 쓰지 않는다.
+- DB URL은 `.env`의 `DATABASE_URL` 하나로 관리하고 `postgresql+asyncpg://` 형식을 쓴다.
+- 세션은 `async_sessionmaker(engine, expire_on_commit=False)`로 만들고 요청 단위로 연다.
+- `alembic revision --autogenerate`가 도메인 매핑을 찾으려면 그 모듈이 import되어 있어야 한다. `migrations/env.py`가 `nua.db.models`를 import하므로, 새 매핑은 `db/models/__init__.py`에 올린다.
+- 첫 리비전은 첫 도메인 매핑이 생길 때 만든다. 지금 `migrations/versions/`는 비어 있고 `alembic upgrade head`는 아무것도 하지 않는다.
 
 ## 미정 사항
 
-- 프론트엔드와의 통신 규약(경로 규칙, 에러 응답 형식)
+- 프론트엔드와의 통신 규약(경로 규칙, 에러 응답 형식). 타입은 `/openapi.json`에서 생성하는 방향으로 확정.
 - 인증과 기기 식별 방식
 - 배포 방식
-- lint 설정에서 여러 줄 import 블록의 마지막 콤마를 허용할지
+- `ruff format` 적용 여부. 아래 포맷 절과 충돌한다 — 여러 줄로 쓴 호출을 한 줄로 합치고, 여러 줄로 쪼갤 때 마지막 항목 뒤에 콤마를 넣는다. 적용하기로 하면 포맷 절을 다시 쓴다.
+- CORS 허용 origin. 지금은 `CORS_ORIGINS` 기본값이 `*`다.
