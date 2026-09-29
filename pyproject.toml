@@ -1,0 +1,47 @@
+[project]
+name = "nua_back"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+    'alembic>=1.20.0,<2.0.0',
+    'asyncpg>=0.31.0,<1.0.0',
+    'dependency-injector>=4.49.1,<5.0.0',
+    'fastapi>=0.141.1,<1.0.0',
+    'python-dotenv>=1.2.3,<2.0.0',
+    'reger>=0.1.3',
+    'sqlalchemy[asyncio]>=2.1.1,<3.0.0',
+    'uvicorn>=0.54.0,<1.0.0'
+]
+
+[dependency-groups]
+dev = [
+    'httpx>=0.28.1,<1.0.0',
+    'pytest>=9.1.1,<10.0.0',
+    'pytest-asyncio>=1.4.0,<2.0.0',
+    'ruff>=0.16.9'
+]
+
+[project.scripts]
+nua = "nua:main"
+
+[build-system]
+requires = ["uv_build>=0.12,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "nua"
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+ignore = [
+    'RUF022'
+]
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
