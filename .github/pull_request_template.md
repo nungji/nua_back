@@ -1,4 +1,5 @@
 (pr 이름은 앞에 add:, edit:, fix:, refactor:, chore:, rm:, format: 중 하나가 붙어야함. 자세한 내용은 .github/CONTRIBUTING.md)
+(base 가 main 이 아니면 그 사실과 이유를 여기에 적는다)
 # 개요
 [여기에 이 pr 내용 한줄 설명]
 
