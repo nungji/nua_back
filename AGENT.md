@@ -130,8 +130,10 @@ async def get_stage(session: Annotated[AsyncSession, Depends(get_session)]):
 
 - 커밋은 `접두사: 한글 서술문` 형식이고, 접두사는 `add:` `edit:` `fix:` `refactor:` `chore:` `rm:` `format:` 중 하나다.
 - 한 번에 여러 논리 단위를 지시받으면 논리 단위별로 커밋을 나눈다.
-- **PR 머지는 사람이 직접 한다. 에이전트는 머지하지 않는다.**
+- PR 의 base 는 가능한 `main` 으로 한다. `main` 이 아니면 본문이나 이슈에 밝힌다.
+- **PR 의 최종 머지는 언제나 사람이 한다. 에이전트는 머지하지 않는다.**
 - `main` 에 직접 push하지 않는다.
+- 시크릿(API 키·토큰·비밀번호)을 커밋하지 않는다. 값은 `.env` 에만 둔다.
 
 ## Python 코드 컨벤션
 
