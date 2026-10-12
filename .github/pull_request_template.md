@@ -1,4 +1,4 @@
-(pr 이름은 AGENT.md 커밋 접두사 표의 접두사 중 하나로 시작한다)
+(pr 이름은 앞에 add:, edit:, fix:, refactor:, chore:, rm:, format: 중 하나가 붙어야함. 자세한 내용은 .github/CONTRIBUTING.md)
 # 개요
 [여기에 이 pr 내용 한줄 설명]
 
