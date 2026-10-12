@@ -121,7 +121,7 @@ async def get_stage(session: Annotated[AsyncSession, Depends(get_session)]):
 
 ## 도구
 
-- lint는 `uv run ruff check .`. `ruff format`은 아래 미정 사항 참고.
+- 린터·포맷터 도구를 두지 않는다. 포맷은 아래 코드 컨벤션의 포맷 절 규칙을 손으로 맞춘다.
 - 테스트는 `uv run pytest`. DB가 필요한 테스트는 compose의 Postgres를 쓴다.
 - 로컬 실행은 `docker compose up --build`로 api와 db를 함께 띄운다. 백엔드만 볼 때는 `uv run nua`.
 - compose의 환경변수는 `${VAR:-기본값}` 형식이다. `.env`나 셸 환경에 값이 있으면 그 값을 쓰고, 없으면 기본값으로 뜬다. `DATABASE_URL`만은 컨테이너 안에서 `db` 호스트로 붙어야 해서 compose가 조립한다(`POSTGRES_*`는 `.env` 값을 따른다).
@@ -267,5 +267,5 @@ download(
 - 프론트엔드와의 통신 규약(경로 규칙, 에러 응답 형식). 타입은 `/openapi.json`에서 생성하는 방향으로 확정.
 - 인증과 기기 식별 방식
 - 배포 방식
-- `ruff format` 적용 여부. **설정으로는 해결되지 않는다(실측)** — 여러 줄로 쓴 호출·컬렉션을 한 줄로 합치고(`skip-magic-trailing-comma`를 켜도 `__all__` 섹션 구분 빈 줄이 사라진다), 여러 줄로 쪼갤 때 마지막 항목 뒤 콤마를 넣는다(끄는 옵션이 없다). `line-length`도 어느 쪽이 쪼개질지만 바꾼다. 그래서 (a) 포맷터를 받아들이고 포맷 절을 다시 쓰거나 (b) `ruff check`만 쓸지 정해야 한다. 지금은 (b)다.
+- 린터·포맷터 도구 도입 여부. 지금은 없다(포매터가 포맷 절 규칙과 충돌해서 제거했다).
 - CORS 허용 origin. 지금은 `CORS_ORIGINS` 기본값이 `*`다.
